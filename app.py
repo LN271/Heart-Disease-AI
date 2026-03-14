@@ -91,7 +91,7 @@ with tab1:
         
     ldl = st.number_input("⚠️ الكوليسترول الضار (LDL)", min_value=30, max_value=300, value=118)
 
-    if st.button("🚀 إصدار نتائج التحليل الآن", use_container_width=True, type="primary"):
+    if st.button(" إصدار نتائج التحليل ", use_container_width=True, type="primary"):
         data = {
             "age": float(age),
             "sex": sex,
@@ -145,7 +145,7 @@ with tab1:
                 # إرسال البيانات للذكاء الاصطناعي
                 response = model_ai.generate_content(prompt)
                 st.session_state.chat_history.append({"role": "ai", "text": response.text})
-                st.success("✅ الطبيب قام بدراسة النتائج! انتقل إلى تبويب '🩺 الاستشاري الذكي' بالأعلى لقراءة التقرير والتحدث معه.")
+                st.success("✅ الطبيب قام بدراسة النتائج! انتقل إلى  '🩺 الاستشاري الذكي' بالأعلى لقراءة التقرير والتحدث معه.")
             except Exception as e:
                 st.error(f"⚠️ حدث خطأ في الاتصال: {e}")
 
