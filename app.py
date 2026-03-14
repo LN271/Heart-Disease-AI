@@ -5,8 +5,7 @@ from google import genai
 from google.genai import types
 
 # --- الإعدادات الفنية ---
-GEMINI_API_KEY = "AIzaSyBT8YB-z95-ilwviRJ9e9Ea8z5COipuxIQ"
-
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 # تعليمات صارمة للذكاء الاصطناعي ليتصرف كطبيب حقيقي
 SYSTEM_INSTRUCTION = """
 أنت طبيب قلب استشاري. سأعطيك 'نتائج التحليل الطبي' للمريض. 
