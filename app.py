@@ -2,24 +2,26 @@ import streamlit as st
 import joblib
 import pandas as pd
 import google.generativeai as genai
-from google.genai import types
 
-# --- الإعدادات الفنية ---
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("⚠️ لم يتم العثور على المفتاح السري! تأكد من وضع المفتاح والضغط على Save في إعدادات Streamlit.")
-    st.stop()
+# 1. جلب المفتاح السري من إعدادات Streamlit
+api_key = st.secrets["GEMINI_API_KEY"]
+
+# 2. إعداد مكتبة جيميناي
 genai.configure(api_key=api_key)
-# تعليمات صارمة للذكاء الاصطناعي ليتصرف كطبيب حقيقي
+
+# 3. تعليمات صارمة للذكاء الاصطناعي (كنص عادي)
 SYSTEM_INSTRUCTION = """
 أنت طبيب قلب استشاري. سأعطيك 'نتائج التحليل الطبي' للمريض. 
 اشرحها للمريض بأسلوب إنساني، مبسط، ومطمئن، وقدم له نصائح وقائية وعلاجية. 
 ممنوع تماماً استخدام كلمات مثل 'خوارزمية'، 'ذكاء اصطناعي'، 'نموذج'، أو 'برنامج'. 
 تحدث دائماً كطبيب بشري حقيقي يقرأ تقريراً طبياً لمريضه.
 انت طبيب يتكلم عن القلب فقط
- واذا طلب صورة او مخطط بياني للتوضيح عن سبب النتائج ارسال له 
-
+واذا طلب صورة او مخطط بياني للتوضيح عن سبب النتائج ارسال له 
 """
+
+# 4. تجهيز نموذج الذكاء الاصطناعي وإرفاق التعليمات به (سميناه model_ai لتجنب التداخل)
+model_ai = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION)
+
 
 # --- إعدادات صفحة الويب/الموبايل ---
 st.set_page_config(page_title="HeartShield AI", page_icon="🫀", layout="centered")
@@ -36,16 +38,16 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# دالة لتحميل ملفات التحليل
+# دالة لتحميل ملفات التحليل (سميناه ml_model لتجنب التداخل)
 @st.cache_resource
 def load_models():
-    model = joblib.load('heart_attack_stack_model.pkl')
+    ml_model = joblib.load('heart_attack_stack_model.pkl')
     scaler = joblib.load('scaler.pkl')
     best_threshold = joblib.load('best_threshold.pkl')
-    return model, scaler, best_threshold
+    return ml_model, scaler, best_threshold
 
 try:
-    model, scaler, best_threshold = load_models()
+    ml_model, scaler, best_threshold = load_models()
 except Exception as e:
     st.error(f"⚠️ فشل تحميل ملفات التحليل: {e}")
     st.stop()
@@ -111,14 +113,14 @@ with tab1:
             df = df[correct_order]
         except AttributeError:
             try:
-                correct_order = model.feature_names_in_
+                correct_order = ml_model.feature_names_in_
                 df = df[correct_order]
             except AttributeError:
                 expected_columns = ['age', 'sex', 'total_cholesterol', 'systolic_bp', 'diastolic_bp', 'smoking', 'diabetes', 'hdl', 'ldl']
                 df = df[expected_columns]
             
         scaled = scaler.transform(df)
-        prob = model.predict_proba(scaled)[:, 1][0]
+        prob = ml_model.predict_proba(scaled)[:, 1][0]
         
         is_infected = prob >= best_threshold
         status = "🚨 حالة حرجة (تحتاج متابعة)" if is_infected else "✅ حالة سليمة (مؤشرات طبيعية)"
@@ -142,12 +144,8 @@ with tab1:
             st.session_state.chat_history.append({"role": "user", "text": "مرحباً دكتور، هذه نتائج التحليل الطبي الخاصة بي، أرجو الاطلاع عليها وتوضيح حالتي."})
             
             try:
-                client = genai.Client(api_key=GEMINI_API_KEY)
-                response = client.models.generate_content(
-                    model='gemini-2.5-flash',
-                    contents=prompt,
-                    config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION)
-                )
+                # إرسال البيانات للذكاء الاصطناعي
+                response = model_ai.generate_content(prompt)
                 st.session_state.chat_history.append({"role": "ai", "text": response.text})
                 st.success("✅ الطبيب قام بدراسة النتائج! انتقل إلى تبويب '🩺 الاستشاري الذكي' بالأعلى لقراءة التقرير والتحدث معه.")
             except Exception as e:
@@ -165,18 +163,14 @@ with tab2:
             else:
                 st.chat_message("assistant", avatar="🩺").write(msg["text"])
                 
-        if user_input := st.chat_input(""):
+        if user_input := st.chat_input("تحدث مع الطبيب هنا..."):
             st.session_state.chat_history.append({"role": "user", "text": user_input})
             st.chat_message("user").write(user_input)
             
             with st.spinner('الطبيب يكتب...'):
                 try:
-                    client = genai.Client(api_key=GEMINI_API_KEY)
-                    response = client.models.generate_content(
-                        model='gemini-2.5-flash',
-                        contents=user_input,
-                        config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION)
-                    )
+                    # إرسال استفسار المريض للذكاء الاصطناعي
+                    response = model_ai.generate_content(user_input)
                     st.session_state.chat_history.append({"role": "ai", "text": response.text})
                     st.rerun()
                 except Exception as e:
