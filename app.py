@@ -20,8 +20,7 @@ SYSTEM_INSTRUCTION = """
 """
 
 # 4. تجهيز نموذج الذكاء الاصطناعي وإرفاق التعليمات به (سميناه model_ai لتجنب التداخل)
-model_ai = genai.GenerativeModel('gemini-1.5-flash', system_instruction=SYSTEM_INSTRUCTION)
-
+model_ai = genai.GenerativeModel('gemini-1.5-flash-latest', system_instruction=SYSTEM_INSTRUCTION)
 
 # --- إعدادات صفحة الويب/الموبايل ---
 st.set_page_config(page_title="HeartShield AI", page_icon="🫀", layout="centered")
