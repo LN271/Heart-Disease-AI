@@ -1,7 +1,7 @@
 import streamlit as st
 import joblib
 import pandas as pd
-from google import genai
+import google.generativeai as genai
 from google.genai import types
 
 # --- الإعدادات الفنية ---
