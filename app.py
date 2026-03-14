@@ -5,7 +5,11 @@ from google import genai
 from google.genai import types
 
 # --- الإعدادات الفنية ---
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+api_key = st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("⚠️ لم يتم العثور على المفتاح السري! تأكد من وضع المفتاح والضغط على Save في إعدادات Streamlit.")
+    st.stop()
+genai.configure(api_key=api_key)
 # تعليمات صارمة للذكاء الاصطناعي ليتصرف كطبيب حقيقي
 SYSTEM_INSTRUCTION = """
 أنت طبيب قلب استشاري. سأعطيك 'نتائج التحليل الطبي' للمريض. 
@@ -13,6 +17,8 @@ SYSTEM_INSTRUCTION = """
 ممنوع تماماً استخدام كلمات مثل 'خوارزمية'، 'ذكاء اصطناعي'، 'نموذج'، أو 'برنامج'. 
 تحدث دائماً كطبيب بشري حقيقي يقرأ تقريراً طبياً لمريضه.
 انت طبيب يتكلم عن القلب فقط
+ واذا طلب صورة او مخطط بياني للتوضيح عن سبب النتائج ارسال له 
+
 """
 
 # --- إعدادات صفحة الويب/الموبايل ---
