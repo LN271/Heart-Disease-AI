@@ -120,7 +120,7 @@ with tab1:
                 
                 # تم تصحيح اسم الموديل هنا إلى gemini-1.5-flash
                 chat_model = genai.GenerativeModel(
-                    model_name='gemini-1.5-flash', 
+                    model_name='gemini-flash' 
                     system_instruction=SYSTEM_INSTRUCTION
                 )
                 
@@ -150,7 +150,7 @@ with tab2:
                 try:
                     # تم تصحيح اسم الموديل هنا أيضاً
                     chat_model = genai.GenerativeModel(
-                        model_name='gemini-1.5-flash',
+                        model_name='gemini-flash'
                         system_instruction=SYSTEM_INSTRUCTION
                     )
                     response = chat_model.generate_content(st.session_state.chat_history)
