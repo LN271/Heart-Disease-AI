@@ -1,30 +1,28 @@
+import streamlit
 import streamlit as st
 import joblib
 import pandas as pd
 import google.generativeai as genai
 
-# 1. جلب المفتاح السري من إعدادات Streamlit
-api_key = st.secrets["GEMINI_API_KEY"]
-
-# 2. إعداد مكتبة جيميناي
+# --- 1. الإعدادات الفنية ومفتاح الـ API ---
+api_key = st.secrets["MY_API_KEY"]
+# إعداد المكتبة
 genai.configure(api_key=api_key)
 
-# 3. تعليمات صارمة للذكاء الاصطناعي (كنص عادي)
+# تعليمات الطبيب الاستشاري الصارمة
 SYSTEM_INSTRUCTION = """
 أنت طبيب قلب استشاري. سأعطيك 'نتائج التحليل الطبي' للمريض. 
 اشرحها للمريض بأسلوب إنساني، مبسط، ومطمئن، وقدم له نصائح وقائية وعلاجية. 
 ممنوع تماماً استخدام كلمات مثل 'خوارزمية'، 'ذكاء اصطناعي'، 'نموذج'، أو 'برنامج'. 
 تحدث دائماً كطبيب بشري حقيقي يقرأ تقريراً طبياً لمريضه.
-انت طبيب يتكلم عن القلب فقط
-واذا طلب صورة او مخطط بياني للتوضيح عن سبب النتائج ارسال له 
+أنت طبيب يتكلم عن القلب فقط.
+وإذا طلب صورة أو مخطط بياني للتوضيح عن سبب النتائج، قدم له الوصف الطبي الدقيق.
 """
 
-# 4. تجهيز نموذج الذكاء الاصطناعي وإرفاق التعليمات به (سميناه model_ai لتجنب التداخل)
-model_ai = genai.GenerativeModel('gemini-2.5-flash', system_instruction=SYSTEM_INSTRUCTION)
-# --- إعدادات صفحة الويب/الموبايل ---
+# --- 2. إعدادات الصفحة والواجهة ---
 st.set_page_config(page_title="HeartShield AI", page_icon="🫀", layout="centered")
 
-# --- إخفاء أزرار Streamlit العلوية (Deploy, GitHub, Menu) ---
+# إخفاء عناصر Streamlit لزيادة احترافية التطبيق
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -36,39 +34,31 @@ hide_st_style = """
             """
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
-# دالة لتحميل ملفات التحليل (سميناه ml_model لتجنب التداخل)
+# --- 3. تحميل ملفات التحليل الذكي (.pkl) ---
 @st.cache_resource
 def load_models():
-    ml_model = joblib.load('heart_attack_stack_model.pkl')
+    model = joblib.load('heart_attack_stack_model.pkl')
     scaler = joblib.load('scaler.pkl')
     best_threshold = joblib.load('best_threshold.pkl')
-    return ml_model, scaler, best_threshold
+    return model, scaler, best_threshold
 
 try:
-    ml_model, scaler, best_threshold = load_models()
+    model, scaler, best_threshold = load_models()
 except Exception as e:
     st.error(f"⚠️ فشل تحميل ملفات التحليل: {e}")
     st.stop()
 
-# --- إدارة حالة التطبيق (Session State) ---
-if 'last_status' not in st.session_state:
-    st.session_state.last_status = None
-if 'last_prob' not in st.session_state:
-    st.session_state.last_prob = None
-if 'last_data' not in st.session_state:
-    st.session_state.last_data = None
+# إدارة ذاكرة المحادثة
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
-# --- تصميم الواجهة ---
+# --- 4. تصميم الواجهة الرسومية ---
 st.markdown("<h1 style='text-align: center; color: #58A6FF;'>نظام التشخيص المتكامل 🫀</h1>", unsafe_allow_html=True)
 
-# نظام التبويبات
 tab1, tab2 = st.tabs(["📊 الفحص الطبي", "🩺 الاستشاري الذكي"])
 
 with tab1:
     st.subheader("إدخال بيانات المريض")
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -80,96 +70,94 @@ with tab1:
     with col2:
         sex_input = st.selectbox("⚥ الجنس", ["ذكر", "أنثى"])
         sex = 1.0 if sex_input == "ذكر" else 0.0
-        
         smoking_input = st.selectbox("🚬 التدخين", ["لا", "نعم"])
         smoking = 1.0 if smoking_input == "نعم" else 0.0
-        
         diabetes_input = st.selectbox("🍬 السكري", ["لا", "نعم"])
         diabetes = 1.0 if diabetes_input == "نعم" else 0.0
-        
         diastolic_bp = st.number_input("📉 الضغط الانبساطي", min_value=40, max_value=150, value=82)
         
     ldl = st.number_input("⚠️ الكوليسترول الضار (LDL)", min_value=30, max_value=300, value=118)
 
-    if st.button(" إصدار نتائج التحليل ", use_container_width=True, type="primary"):
+    if st.button("إصدار نتائج التحليل", use_container_width=True, type="primary"):
+        # تجهيز البيانات
         data = {
-            "age": float(age),
-            "sex": sex,
-            "total_cholesterol": float(total_cholesterol),
-            "systolic_bp": float(systolic_bp),
-            "diastolic_bp": float(diastolic_bp),
-            "smoking": smoking,
-            "diabetes": diabetes,
-            "hdl": float(hdl),
-            "ldl": float(ldl)
+            "age": int(age), "sex": sex, "total_cholesterol": float(total_cholesterol),
+            "systolic_bp": float(systolic_bp), "diastolic_bp": float(diastolic_bp),
+            "smoking": smoking, "diabetes": diabetes, "hdl": float(hdl), "ldl": float(ldl)
         }
         
         df = pd.DataFrame([data])
         
         try:
-            correct_order = scaler.feature_names_in_
+            # ترتيب الأعمدة لتطابق ما تدرب عليه الموديل
+            if hasattr(scaler, 'feature_names_in_'):
+                correct_order = scaler.feature_names_in_
+            elif hasattr(model, 'feature_names_in_'):
+                correct_order = model.feature_names_in_
+            else:
+                correct_order = ['age', 'sex', 'total_cholesterol', 'systolic_bp', 'diastolic_bp', 'smoking', 'diabetes', 'hdl', 'ldl']
+            
             df = df[correct_order]
-        except AttributeError:
-            try:
-                correct_order = ml_model.feature_names_in_
-                df = df[correct_order]
-            except AttributeError:
-                expected_columns = ['age', 'sex', 'total_cholesterol', 'systolic_bp', 'diastolic_bp', 'smoking', 'diabetes', 'hdl', 'ldl']
-                df = df[expected_columns]
             
-        scaled = scaler.transform(df)
-        prob = ml_model.predict_proba(scaled)[:, 1][0]
-        
-        is_infected = prob >= best_threshold
-        status = "🚨 حالة حرجة (تحتاج متابعة)" if is_infected else "✅ حالة سليمة (مؤشرات طبيعية)"
-        
-        st.session_state.last_status = status
-        st.session_state.last_prob = prob
-        st.session_state.last_data = data
-        
-        # عرض النتيجة
-        if is_infected:
-            st.error(f"**النتيجة الأولية:** {status} | **مؤشر الخطر:** {prob*100:.1f}%")
-        else:
-            st.success(f"**النتيجة الأولية:** {status} | **مؤشر الخطر:** {prob*100:.1f}%")
+            # تنفيذ عملية التوقع
+            scaled_data = scaler.transform(df)
+            prob = model.predict_proba(scaled_data)[:, 1][0]
             
-        # الاتصال التلقائي بالطبيب الذكي (بدون تدخل المستخدم)
-        with st.spinner('⏳ جاري إرسال النتائج للاستشاري لتحليلها وإعداد التقرير...'):
-            prompt = f"نتائج التحليل الطبي أظهرت أن المريض في: {status} بمؤشر خطر {prob*100:.1f}%. المعطيات الحيوية للمريض هي: {data}. بصفتك طبيب قلب، اشرح لي هذه النتيجة وقدم لي نصائح طبية."
+            is_infected = prob >= best_threshold
+            status = "🚨 حالة حرجة (تحتاج متابعة)" if is_infected else "✅ حالة سليمة (مؤشرات طبيعية)"
             
-            # مسح المحادثة القديمة وبدء واحدة جديدة
-            st.session_state.chat_history = []
-            st.session_state.chat_history.append({"role": "user", "text": "مرحباً دكتور، هذه نتائج التحليل الطبي الخاصة بي، أرجو الاطلاع عليها وتوضيح حالتي."})
+            # عرض النتيجة المبدئية للمستخدم
+            if is_infected:
+                st.error(f"النتيجة الأولية: {status} | مؤشر الخطر: {prob*100:.1f}%")
+            else:
+                st.success(f"النتيجة الأولية: {status} | مؤشر الخطر: {prob*100:.1f}%")
             
-            try:
-                # إرسال البيانات للذكاء الاصطناعي
-                response = model_ai.generate_content(prompt)
-                st.session_state.chat_history.append({"role": "ai", "text": response.text})
-                st.success("✅ الطبيب قام بدراسة النتائج! انتقل إلى  '🩺 الاستشاري الذكي' بالأعلى لقراءة التقرير والتحدث معه.")
-            except Exception as e:
-                st.error(f"⚠️ حدث خطأ في الاتصال: {e}")
+            # --- الاتصال التلقائي بالطبيب الذكي ---
+            with st.spinner('⏳ جاري إرسال النتائج للاستشاري لتحليلها...'):
+                prompt = f"نتائج التحليل الطبي أظهرت أن المريض في: {status} بمؤشر خطر {prob*100:.1f}%. المعطيات الحيوية للمريض هي: {data}. بصفتك طبيب قلب، اشرح لي هذه النتيجة وقدم لي نصائح طبية."
+                
+                st.session_state.chat_history = [
+                    {"role": "user", "parts": ["مرحباً دكتور، هذه نتائج التحليل الطبي الخاصة بي، أرجو الاطلاع عليها وتوضيح حالتي."]}
+                ]
+                
+                # استخدام النموذج المتوفر في قائمتك
+                chat_model = genai.GenerativeModel(
+                    model_name='gemini-2.5-flash',
+                    system_instruction=SYSTEM_INSTRUCTION
+                )
+                
+                response = chat_model.generate_content(prompt)
+                st.session_state.chat_history.append({"role": "model", "parts": [response.text]})
+                st.success("✅ الطبيب قام بدراسة النتائج! انتقل لتبويب 'الاستشاري الذكي' لقراءة التقرير.")
+                
+        except Exception as e:
+            st.error(f"⚠️ خطأ في معالجة البيانات: {e}")
 
 with tab2:
     st.subheader("محادثة مع الطبيب الاستشاري")
     
-    if len(st.session_state.chat_history) == 0:
-        st.info("👈 يرجى إدخال البيانات في التبويب الأول والضغط على 'إصدار نتائج التحليل' لكي يقوم الطبيب بدراسة حالتك.")
+    if not st.session_state.chat_history:
+        st.info("👈 يرجى إدخال البيانات في التبويب الأول والضغط على 'إصدار نتائج التحليل' أولاً.")
     else:
+        # عرض سجل المحادثة
         for msg in st.session_state.chat_history:
-            if msg["role"] == "user":
-                st.chat_message("user").write(msg["text"])
-            else:
-                st.chat_message("assistant", avatar="🩺").write(msg["text"])
+            role = "user" if msg["role"] == "user" else "assistant"
+            avatar = "🩺" if role == "assistant" else None
+            st.chat_message(role, avatar=avatar).write(msg["parts"][0])
                 
-        if user_input := st.chat_input("تحدث مع الطبيب هنا..."):
-            st.session_state.chat_history.append({"role": "user", "text": user_input})
+        # خانة الدردشة
+        if user_input := st.chat_input("اسأل الطبيب أي سؤال إضافي..."):
+            st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
             st.chat_message("user").write(user_input)
             
-            with st.spinner('الطبيب يكتب...'):
+            with st.spinner('الطبيب يفكر...'):
                 try:
-                    # إرسال استفسار المريض للذكاء الاصطناعي
-                    response = model_ai.generate_content(user_input)
-                    st.session_state.chat_history.append({"role": "ai", "text": response.text})
+                    chat_model = genai.GenerativeModel(
+                        model_name='gemini-2.5-flash',
+                        system_instruction=SYSTEM_INSTRUCTION
+                    )
+                    response = chat_model.generate_content(st.session_state.chat_history)
+                    st.session_state.chat_history.append({"role": "model", "parts": [response.text]})
                     st.rerun()
                 except Exception as e:
-                    st.error(f"حدث خطأ: {e}")
+                    st.error(f"حدث خطأ في الاتصال: {e}")
