@@ -1,13 +1,16 @@
-import streamlit
 import streamlit as st
 import joblib
 import pandas as pd
 import google.generativeai as genai
 
 # --- 1. الإعدادات الفنية ومفتاح الـ API ---
-api_key = st.secrets["MY_API_KEY"]
-# إعداد المكتبة
-genai.configure(api_key=api_key)
+# تأكد أنك كتبت MY_API_KEY داخل Secrets في لوحة تحكم Streamlit
+try:
+    api_key = st.secrets["MY_API_KEY"]
+    genai.configure(api_key=api_key)
+except KeyError:
+    st.error("⚠️ لم يتم العثور على مفتاح 'MY_API_KEY' في إعدادات Secrets.")
+    st.stop()
 
 # تعليمات الطبيب الاستشاري الصارمة
 SYSTEM_INSTRUCTION = """
@@ -37,6 +40,7 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # --- 3. تحميل ملفات التحليل الذكي (.pkl) ---
 @st.cache_resource
 def load_models():
+    # تأكد أن هذه الملفات مرفوعة بجانب ملف app.py على GitHub
     model = joblib.load('heart_attack_stack_model.pkl')
     scaler = joblib.load('scaler.pkl')
     best_threshold = joblib.load('best_threshold.pkl')
@@ -79,7 +83,6 @@ with tab1:
     ldl = st.number_input("⚠️ الكوليسترول الضار (LDL)", min_value=30, max_value=300, value=118)
 
     if st.button("إصدار نتائج التحليل", use_container_width=True, type="primary"):
-        # تجهيز البيانات
         data = {
             "age": int(age), "sex": sex, "total_cholesterol": float(total_cholesterol),
             "systolic_bp": float(systolic_bp), "diastolic_bp": float(diastolic_bp),
@@ -89,7 +92,6 @@ with tab1:
         df = pd.DataFrame([data])
         
         try:
-            # ترتيب الأعمدة لتطابق ما تدرب عليه الموديل
             if hasattr(scaler, 'feature_names_in_'):
                 correct_order = scaler.feature_names_in_
             elif hasattr(model, 'feature_names_in_'):
@@ -98,21 +100,17 @@ with tab1:
                 correct_order = ['age', 'sex', 'total_cholesterol', 'systolic_bp', 'diastolic_bp', 'smoking', 'diabetes', 'hdl', 'ldl']
             
             df = df[correct_order]
-            
-            # تنفيذ عملية التوقع
             scaled_data = scaler.transform(df)
             prob = model.predict_proba(scaled_data)[:, 1][0]
             
             is_infected = prob >= best_threshold
             status = "🚨 حالة حرجة (تحتاج متابعة)" if is_infected else "✅ حالة سليمة (مؤشرات طبيعية)"
             
-            # عرض النتيجة المبدئية للمستخدم
             if is_infected:
                 st.error(f"النتيجة الأولية: {status} | مؤشر الخطر: {prob*100:.1f}%")
             else:
                 st.success(f"النتيجة الأولية: {status} | مؤشر الخطر: {prob*100:.1f}%")
             
-            # --- الاتصال التلقائي بالطبيب الذكي ---
             with st.spinner('⏳ جاري إرسال النتائج للاستشاري لتحليلها...'):
                 prompt = f"نتائج التحليل الطبي أظهرت أن المريض في: {status} بمؤشر خطر {prob*100:.1f}%. المعطيات الحيوية للمريض هي: {data}. بصفتك طبيب قلب، اشرح لي هذه النتيجة وقدم لي نصائح طبية."
                 
@@ -120,9 +118,9 @@ with tab1:
                     {"role": "user", "parts": ["مرحباً دكتور، هذه نتائج التحليل الطبي الخاصة بي، أرجو الاطلاع عليها وتوضيح حالتي."]}
                 ]
                 
-                # استخدام النموذج المتوفر في قائمتك
+                # تم تصحيح اسم الموديل هنا إلى gemini-1.5-flash
                 chat_model = genai.GenerativeModel(
-                    model_name='gemini-2.5-flash',
+                    model_name='gemini-1.5-flash', 
                     system_instruction=SYSTEM_INSTRUCTION
                 )
                 
@@ -139,21 +137,20 @@ with tab2:
     if not st.session_state.chat_history:
         st.info("👈 يرجى إدخال البيانات في التبويب الأول والضغط على 'إصدار نتائج التحليل' أولاً.")
     else:
-        # عرض سجل المحادثة
         for msg in st.session_state.chat_history:
             role = "user" if msg["role"] == "user" else "assistant"
             avatar = "🩺" if role == "assistant" else None
             st.chat_message(role, avatar=avatar).write(msg["parts"][0])
                 
-        # خانة الدردشة
         if user_input := st.chat_input("اسأل الطبيب أي سؤال إضافي..."):
             st.session_state.chat_history.append({"role": "user", "parts": [user_input]})
             st.chat_message("user").write(user_input)
             
             with st.spinner('الطبيب يفكر...'):
                 try:
+                    # تم تصحيح اسم الموديل هنا أيضاً
                     chat_model = genai.GenerativeModel(
-                        model_name='gemini-2.5-flash',
+                        model_name='gemini-1.5-flash',
                         system_instruction=SYSTEM_INSTRUCTION
                     )
                     response = chat_model.generate_content(st.session_state.chat_history)
