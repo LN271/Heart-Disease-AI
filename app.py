@@ -4,7 +4,6 @@ import pandas as pd
 import google.generativeai as genai
 
 # --- 1. الإعدادات الفنية ومفتاح الـ API ---
-# تأكد أنك كتبت MY_API_KEY داخل Secrets في لوحة تحكم Streamlit
 try:
     api_key = st.secrets["MY_API_KEY"]
     genai.configure(api_key=api_key)
@@ -25,7 +24,6 @@ SYSTEM_INSTRUCTION = """
 # --- 2. إعدادات الصفحة والواجهة ---
 st.set_page_config(page_title="HeartShield AI", page_icon="🫀", layout="centered")
 
-# إخفاء عناصر Streamlit لزيادة احترافية التطبيق
 hide_st_style = """
             <style>
             #MainMenu {visibility: hidden;}
@@ -40,7 +38,6 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # --- 3. تحميل ملفات التحليل الذكي (.pkl) ---
 @st.cache_resource
 def load_models():
-    # تأكد أن هذه الملفات مرفوعة بجانب ملف app.py على GitHub
     model = joblib.load('heart_attack_stack_model.pkl')
     scaler = joblib.load('scaler.pkl')
     best_threshold = joblib.load('best_threshold.pkl')
@@ -52,7 +49,6 @@ except Exception as e:
     st.error(f"⚠️ فشل تحميل ملفات التحليل: {e}")
     st.stop()
 
-# إدارة ذاكرة المحادثة
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 
@@ -118,9 +114,9 @@ with tab1:
                     {"role": "user", "parts": ["مرحباً دكتور، هذه نتائج التحليل الطبي الخاصة بي، أرجو الاطلاع عليها وتوضيح حالتي."]}
                 ]
                 
-                # تم تصحيح اسم الموديل هنا إلى gemini-1.5-flash
+                # تصحيح: إضافة الفاصلة بعد اسم الموديل
                 chat_model = genai.GenerativeModel(
-                    model_name='gemini-flash' 
+                    model_name='gemini-1.5-flash',
                     system_instruction=SYSTEM_INSTRUCTION
                 )
                 
@@ -148,9 +144,9 @@ with tab2:
             
             with st.spinner('الطبيب يفكر...'):
                 try:
-                    # تم تصحيح اسم الموديل هنا أيضاً
+                    # تصحيح: إضافة الفاصلة بعد اسم الموديل
                     chat_model = genai.GenerativeModel(
-                        model_name='gemini-flash'
+                        model_name='gemini-1.5-flash',
                         system_instruction=SYSTEM_INSTRUCTION
                     )
                     response = chat_model.generate_content(st.session_state.chat_history)
